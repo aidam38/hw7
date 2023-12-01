@@ -11,6 +11,8 @@ const int MAX_ITERS = 10000;
 const int XRES = 500;
 const int YRES = 500;
 
+const double epsilon = 1e-5;
+
 /**
  * Helpers
  */
@@ -26,7 +28,7 @@ inline double superquadricIO(Vector3d point, double e, double n) {
   return S;
 }
 
-inline superquadricIOGrad(Vector3d point, double e, double n) {
+inline Vector3d superquadricIOGrad(Vector3d point, double e, double n) {
   double x2 = pow(point[0], 2);
   double y2 = pow(point[1], 2);
   double z2 = pow(point[2], 2);
@@ -97,7 +99,7 @@ bool Assembly::IOTest(const Vector3d &point) {
  * Closest Intersection Code
  */
 
-pair<double, Intersection> Superquadric::ClosestIntersection(const Ray &ray) {
+pair<double, Intersection> Superquadric::ClosestIntersection(const Ray &_ray) {
   /**
    * PART 1
    * TODO: Implement a ray-superquadric intersection using Newton's method.
@@ -105,6 +107,7 @@ pair<double, Intersection> Superquadric::ClosestIntersection(const Ray &ray) {
    *       performing Newton's method.
    */
   /* Transform ray to body space */
+  Ray ray = _ray;
   for (auto &t : transforms) {
     ray.Transform(t->GetMatrix().inverse());
   }
@@ -129,17 +132,25 @@ pair<double, Intersection> Superquadric::ClosestIntersection(const Ray &ray) {
     double t = min(t1, t2);
 
     // Execute Newton's method
-    while (true) {
-      t = t - superquadricIO(ray.At(t), exp0, exp1) /
-                  superquadricIOGrad(ray.At(t), exp0, exp1);
+    double g = INFINITY;
+    double gp = -INFINITY;
+    while (abs(g) > epsilon && gp <= 0) {
+      g = superquadricIO(ray.At(t), exp0, exp1);
+      gp = (ray.direction.dot(superquadricIOGrad(ray.At(t), exp0, exp1)));
+      t = t - g / gp;
     }
-
-  } // Else we've missed completely
+    if (abs(g) <= epsilon) {
+      closest.first = t;
+      ray.origin = ray.At(t);
+      ray.Normalize();
+      closest.second.location = ray;
+    } // v
+  } // Else we've missed
 
   return closest;
 }
 
-pair<double, Intersection> Assembly::ClosestIntersection(const Ray &ray) {
+pair<double, Intersection> Assembly::ClosestIntersection(const Ray &_ray) {
   /**
    * PART 1
    * TODO: Implement a ray-assembly intersection by recursively finding
@@ -147,8 +158,21 @@ pair<double, Intersection> Assembly::ClosestIntersection(const Ray &ray) {
    *       transformations to the assembly before calling ClosestIntersection
    *       on the children.
    */
-  pair<double, Intersection> closest = make_pair(INFINITY, Intersection());
-  return closest;
+  Ray ray = _ray;
+  for (auto &t : transforms) {
+    ray.Transform(t->GetMatrix().inverse());
+  }
+  double mint = INFINITY;
+  Intersection minIntersection = Intersection();
+  for (auto &child : children) {
+    auto closest = child->ClosestIntersection(ray);
+    if (closest.first < mint) {
+        mint = closest.first;
+        minIntersection = closest.second;
+    }
+  }
+
+  return make_pair(mint, minIntersection);
 }
 
 /**
