@@ -4,8 +4,8 @@
 
 #include "glinclude.h"
 
-const float iotest_min = -4.0;
-const float iotest_max = 4.0;
+const float iotest_min = -8.0;
+const float iotest_max = 8.0;
 const float iotest_inc = 0.8;
 
 void Scene::ReloadObjects() {
@@ -99,14 +99,22 @@ void Scene::DrawIntersectTest() {
 
     glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, outside_color);
     glLineWidth(2.0);
+    
     glBegin(GL_LINES);
     glVertex3dv(incoming.origin.data());
-    glVertex3dv(incoming.At(1.0).data());
+    glVertex3dv(incoming.At(2.0).data());
     glEnd();
+
+    if (closest.first != INFINITY) {
+        glBegin(GL_LINES);
+        glVertex3dv(incoming.origin.data());
+        glVertex3dv(intersection.origin.data());
+        glEnd();
+    }
 
     glBegin(GL_LINES);
     glVertex3dv(intersection.origin.data());
-    glVertex3dv(intersection.At(1.0).data());
+    glVertex3dv(intersection.At(2.0).data());
     glEnd();
 }
 
